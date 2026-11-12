@@ -366,3 +366,5 @@ td small { color: #74859e; }
  .record-main{order:0;width:100%}
  .record-grid>.card{order:1;width:100%}
 }
+
+.registration-trap{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}

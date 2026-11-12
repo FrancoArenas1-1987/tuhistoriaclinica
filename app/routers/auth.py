@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core.config import settings
@@ -8,6 +8,11 @@ from app.db import get_db
 from app.models import User, UserRole
 from app.schemas import LoginRequest, RegisterRequest, UserRead, ProfileUpdate, PasswordChange
 
+from app.services.abuse import issue_form, consume_form, check_login, failed_login, successful_login
+
+# Equalize password-check work for unknown email addresses.
+DUMMY_PASSWORD_HASH = hash_password("dummy-password-not-an-account")
+
 router = APIRouter(prefix="/api/auth", tags=["Cuenta"])
 
 def session_cookie(response, user):
@@ -15,9 +20,15 @@ def session_cookie(response, user):
                         samesite="lax", secure=settings.cookie_secure,
                         max_age=settings.access_token_expire_minutes * 60)
 
+@router.get("/registration-form")
+def registration_form(request: Request, response: Response):
+    return issue_form(request, response)
+
+
 @router.post("/register", response_model=UserRead, status_code=201)
-def register(payload: RegisterRequest, response: Response, db: Session = Depends(get_db)):
-    data = payload.model_dump(exclude={"password"})
+def register(payload: RegisterRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    consume_form(request, payload)
+    data = payload.model_dump(exclude={"password", "form_token", "website"})
     data["email"] = str(payload.email).lower()
     user = User(**data, role=UserRole.clinician, password_hash=hash_password(payload.password))
     db.add(user)
@@ -31,10 +42,14 @@ def register(payload: RegisterRequest, response: Response, db: Session = Depends
     return user
 
 @router.post("/login", response_model=UserRead)
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    check_login(request, str(payload.email))
     user = db.query(User).filter(User.email == str(payload.email).lower(), User.is_active.is_(True)).first()
-    if len(payload.password.encode("utf-8")) > 72 or not user or not verify_password(payload.password, user.password_hash):
+    valid = len(payload.password.encode("utf-8")) <= 72 and verify_password(payload.password, user.password_hash if user else DUMMY_PASSWORD_HASH)
+    if not user or not valid:
+        failed_login(request, str(payload.email))
         raise HTTPException(401, "Correo o contraseña incorrectos")
+    successful_login(request, str(payload.email))
     session_cookie(response, user)
     return user
 

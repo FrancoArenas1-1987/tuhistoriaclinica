@@ -8,7 +8,7 @@ from app.services.rut import normalize_rut, validate_rut
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=128, repr=False)
 
 
 class UserBase(BaseModel):
@@ -106,6 +106,8 @@ class VisitRead(VisitBase):
 
 
 class RegisterRequest(BaseModel):
+    form_token: str = Field(min_length=1, max_length=2048, repr=False)
+    website: str = Field(default="", max_length=255, repr=False)
     full_name: str = Field(min_length=2, max_length=255)
     email: EmailStr
     password: str = Field(min_length=8, max_length=64)

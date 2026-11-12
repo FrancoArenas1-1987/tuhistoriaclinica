@@ -9,5 +9,7 @@ tuhistoriaclinica.conectaproia.cl {
         Referrer-Policy strict-origin-when-cross-origin
         X-Frame-Options DENY
     }
-    reverse_proxy tuhistoriaclinica:8000
+    reverse_proxy tuhistoriaclinica:8000 {
+        header_up X-Forwarded-For {remote_host}
+    }
 }

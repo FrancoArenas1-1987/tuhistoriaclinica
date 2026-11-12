@@ -1,7 +1,7 @@
 """Credential and profile integration checks with disposable accounts only."""
 import unittest
 from uuid import uuid4
-from fastapi.testclient import TestClient
+from tests.helpers import test_client as TestClient, register
 from app.main import app
 from app.db import SessionLocal
 from app.models import User
@@ -24,7 +24,7 @@ class AccountTest(unittest.TestCase):
             with TestClient(app) as public:
                 check(public.put("/api/auth/password",json={"current_password":password,"new_password":new_password,"confirm_password":new_password}),401)
             for client,mail in ((a,email),(other,email2)):
-                user=check(client.post("/api/auth/register",json={"full_name":"Prueba Cuenta","specialty":"Kinesiología","email":mail,"password":password}),201)
+                user=check(register(client,json={"full_name":"Prueba Cuenta","specialty":"Kinesiología","email":mail,"password":password}),201)
                 ids.append(user["id"])
                 self.assertNotIn("session_version",user)
             check(b.post("/api/auth/login",json={"email":email,"password":password}),200)

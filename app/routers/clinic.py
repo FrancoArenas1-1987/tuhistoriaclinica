@@ -4,6 +4,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.db import get_db
+from app.core.config import settings
+from app.services.abuse import check_quota
 from app.deps import get_current_user
 from app.models import User, Patient, Visit, Appointment
 from app.schemas import PatientCreate, PatientRead, VisitCreate, VisitRead, AppointmentCreate, AppointmentRead
@@ -37,6 +39,7 @@ def patient(patient_id: int, db: Session = Depends(get_db), user: User = Depends
 
 @router.post("/patients", response_model=PatientRead, status_code=201)
 def create_patient(payload: PatientCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    check_quota(db, user, Patient, settings.patient_quota, "pacientes")
     patient = Patient(**payload.model_dump(exclude={"last_visit_date"}), professional_id=user.id)
     db.add(patient)
     commit(db)
@@ -60,6 +63,7 @@ def visits(patient_id: int, db: Session = Depends(get_db), user: User = Depends(
 def save_visit(db, user, payload, visit=None):
     patient = own_patient(db, user, payload.patient_id)
     if visit is None:
+        check_quota(db, user, Visit, settings.visit_quota, "atenciones")
         visit = Visit(professional_id=user.id, **payload.model_dump())
         db.add(visit)
     else:
@@ -108,6 +112,7 @@ def save_appointment(db, user, payload, appointment_id=None):
         if overlaps.first():
             raise HTTPException(409, "Ya tienes una cita en ese horario")
     if appointment is None:
+        check_quota(db, user, Appointment, settings.appointment_quota, "citas", already_locked=True)
         appointment = Appointment(professional_id=user.id, **payload.model_dump())
         db.add(appointment)
     else:

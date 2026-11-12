@@ -5,7 +5,7 @@ Run: python -m unittest discover -s tests -v
 import unittest
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
-from fastapi.testclient import TestClient
+from tests.helpers import test_client as TestClient, register
 from sqlalchemy import inspect, text
 from app.main import app
 from app.db import SessionLocal, engine
@@ -26,11 +26,11 @@ class PortalIntegrationTest(unittest.TestCase):
                     self.assertEqual(public.get(path).status_code, 200)
                 check(public.get("/api/patients"), 401)
             for i, client in enumerate(clients):
-                user = check(client.post("/api/auth/register", json={"full_name":f"Profesional prueba {i}","email":emails[i],"password":password,"specialty":"Kinesiología", "role":"admin"}), 201)
+                user = check(register(client, json={"full_name":f"Profesional prueba {i}","email":emails[i],"password":password,"specialty":"Kinesiología", "role":"admin"}), 201)
                 self.assertEqual(user["role"],"clinician")
                 self.assertNotIn("password_hash",user)
             a,b=clients
-            check(a.post("/api/auth/register",json={"full_name":"Duplicado", "email":emails[0].upper(),"password":password,"specialty":"Medicina"}),409)
+            check(register(a,json={"full_name":"Duplicado", "email":emails[0].upper(),"password":password,"specialty":"Medicina"}),409)
             payload={"rut":"12.345.678-5","first_names":"Paciente QA","last_names":"Prueba","age":32,"pre_existing_conditions":"Sin antecedentes conocidos","first_visit_date":"2026-11-01","consent_signed":False}
             patient=check(a.post("/api/patients",json=payload),201)
             pid=patient["id"]

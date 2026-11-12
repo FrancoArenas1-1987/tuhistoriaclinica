@@ -132,3 +132,28 @@ Por defecto, cada profesional dispone de 512 MiB de órdenes (incluidas miniatur
 **Desarrollo local:** la base es compartida con producción, pero el almacenamiento de archivos es local a cada instalación. Para usar documentos reales, acceder al sitio publicado; para desarrollar, usar datos temporales o una base separada. Una foto subida al equipo local no se copia automáticamente al VPS.
 
 Pruebas específicas: `python -m unittest tests.test_medical_orders -v`. Incluyen HEIC real, orientación EXIF, eliminación de metadatos, acceso entre cuentas, límites, duplicados y eliminación física.
+
+
+## Protección automática contra abuso
+
+El registro sigue siendo gratuito e inmediato, sin aprobación manual, CAPTCHA ni servicios externos.
+
+- El navegador solicita `/api/auth/registration-form`: token firmado de 15 minutos, ligado a cookie HttpOnly y red de origen, válido una sola vez. El formulario espera automáticamente los 2 segundos mínimos, incluso con autocompletado. El campo oculto `website` debe quedar vacío.
+- Por red: hasta 5 registros por hora y 20 por día; 30 envíos de registro por 10 minutos y 60 solicitudes de formulario por 10 minutos. Hay un presupuesto global de 100 registros por hora y 1000 formularios por 10 minutos para limitar ataques distribuidos. Son ventanas contadas desde el primer intento, no intervalos del reloj. Los intentos válidos consumen presupuesto aunque el correo ya exista.
+- Login: 30 solicitudes por 5 minutos y 200 por hora por red; 40 por cuenta por 15 minutos. Después de 3 contraseñas incorrectas para una cuenta desde una red, la espera empieza en 2 segundos y aumenta hasta 5 minutos. Un acceso correcto limpia la espera de esa pareja cuenta/red; los límites generales siguen vigentes. Respuestas 429 incluyen `Retry-After` y un mensaje de espera; no hay bloqueo permanente.
+- IPv6 se agrupa por /64 para impedir que cambiar direcciones dentro de la misma red evada los límites. Una red compartida puede alcanzar sus límites; ajustar los valores del `.env.example` según uso real.
+- Los contadores y tokens consumidos viven en `abuse_state` de PostgreSQL, con operaciones atómicas y bloqueos de fila. Se conservan entre reinicios y procesos. Solo se guardan identificadores HMAC, no IP ni correo en claro en esa tabla. Los registros vencidos se limpian en lotes durante solicitudes protegidas. Los logs de acceso del servidor tienen su propia política de retención.
+- Por profesional: 120 escrituras por minuto, 10 subidas de fotos por minuto y 20 cambios de perfil/contraseña por 5 minutos. Cuotas configurables: 2000 pacientes, 20000 atenciones, 20000 citas, 2000 órdenes médicas y 512 MiB de imágenes. Alcanzar cuotas no impide leer ni editar fichas existentes; los límites temporales de escritura sí aplican a edición. Ninguna ficha existente se elimina automáticamente.
+- Solicitudes de cuenta limitadas a 16 KiB; otras escrituras JSON a 64 KiB, incluso sin Content-Length. Las fotografías mantienen el límite de 12 MiB y el proxy admite como máximo 14 MB. Se rechazan escrituras con Origin ajeno o Sec-Fetch-Site cross-site. Los clientes API sin Origin deben respetar los mismos límites y el protocolo de registro.
+
+En producción, el puerto de la aplicación debe permanecer sin publicar y Caddy debe sobrescribir `X-Forwarded-For` con `{remote_host}` como indica `deploy/Caddyfile.tuhistoriaclinica`. No confiar en cabeceras de IP proporcionadas por el navegador. Si se añade otro proxy delante de Caddy, revisar esta configuración antes de activarlo.
+
+Aplicar `python -m alembic upgrade head` con el usuario de migraciones y conceder SELECT/INSERT/UPDATE/DELETE sobre `abuse_state` al usuario restringido de la aplicación. Las credenciales de producción nunca se incluyen en Git.
+
+Validación aislada (requiere privilegio CREATE DATABASE; elimina únicamente su base temporal al finalizar):
+
+```powershell
+python -m tests.run_isolated
+```
+
+Estas capas reducen automatización y consumo abusivo; no certifican que el usuario sea profesional ni sustituyen defensas de infraestructura frente a saturación de red. La copia de seguridad y la auditoría clínica requieren su propio seguimiento.

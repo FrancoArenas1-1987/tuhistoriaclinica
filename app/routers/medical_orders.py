@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db import get_db
+from app.services.abuse import check_quota
 from app.deps import get_current_user
 from app.models import MedicalOrder, User
 from app.routers.clinic import own_patient
@@ -59,6 +60,7 @@ def upload_order(patient_id: int, photo: UploadFile = File(...), title: str = Fo
     digest = sha256(image).hexdigest()
     # Serialize quota and duplicate checks for this professional.
     db.execute(select(User.id).where(User.id == user.id).with_for_update()).scalar_one()
+    check_quota(db, user, MedicalOrder, settings.medical_order_count_quota, "órdenes médicas", already_locked=True)
     if db.query(MedicalOrder.id).filter(MedicalOrder.patient_id == patient_id, MedicalOrder.sha256 == digest).first():
         raise HTTPException(409, "Esta foto ya está guardada en la ficha del paciente")
     used = db.query(func.coalesce(func.sum(MedicalOrder.size_bytes + MedicalOrder.thumbnail_bytes), 0)).filter(MedicalOrder.professional_id == user.id).scalar()

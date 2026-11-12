@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from uuid import uuid4
 from PIL import Image, ImageDraw
-from fastapi.testclient import TestClient
+from tests.helpers import test_client as TestClient, register
 from app.main import app
 from app.core.config import settings
 from app.db import SessionLocal
@@ -34,7 +34,7 @@ class MedicalOrdersTest(unittest.TestCase):
         with TemporaryDirectory() as folder,patch.object(settings,"storage_dir",Path(folder)):
             try:
                 for client in (a,b):
-                    user=check(client.post("/api/auth/register",json={"full_name":"Prueba Documentos","email":f"orders-{uuid4().hex}@example.com","password":"TestOnly!12345","specialty":"Kinesiología"}),201)
+                    user=check(register(client,json={"full_name":"Prueba Documentos","email":f"orders-{uuid4().hex}@example.com","password":"TestOnly!12345","specialty":"Kinesiología"}),201)
                     ids.append(user["id"])
                 patient=check(a.post("/api/patients",json={"rut":"12345678-5","first_names":"Paciente Prueba","last_names":"Documentos","age":30,"first_visit_date":"2026-11-12","pre_existing_conditions":"Sin antecedentes conocidos"}),201)
                 pid=patient["id"];url=f"/api/patients/{pid}/medical-orders"
@@ -67,6 +67,8 @@ class MedicalOrdersTest(unittest.TestCase):
                 self.assertEqual(len(list(Path(folder).rglob("*.webp"))),2)
                 with patch.object(settings,"medical_order_quota_mb",0):
                     check(a.post(url,data={"title":"Sin espacio"},files={"photo":("green.jpg",photo_bytes(color="green"),"image/jpeg")}),413)
+                with patch.object(settings,"medical_order_count_quota",0):
+                    check(a.post(url,data={"title":"Límite de documentos"},files={"photo":("new.jpg",photo_bytes(color="blue"),"image/jpeg")}),409)
                 # Actual HEIC encoding/decoding, not a renamed JPEG.
                 heic=photo_bytes(kind="HEIF")
                 heic_order=check(a.post(url,data={"title":"Foto iPhone"},files={"photo":("iphone.heic",heic,"image/heic")}),201)

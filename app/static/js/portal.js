@@ -30,10 +30,38 @@ async function api(path, options={}){
   }return body;
 }
 function notify(message,error=false){const el=$("#global-message");el.textContent=message;el.className="toast"+(error?" error":"");el.scrollIntoView({block:"nearest",behavior:"smooth"});}
+let registrationForm=null, registrationFormPromise=null;
+async function prepareRegistration(){
+  if(registrationForm && registrationForm.validUntil>Date.now()+5000)return registrationForm;
+  if(!registrationFormPromise){
+    registrationFormPromise=api("/api/auth/registration-form").then(form=>{
+      registrationForm={...form,readyAt:Date.now()+form.minimum_seconds*1000,validUntil:Date.now()+form.expires_in*1000};
+      return registrationForm;
+    }).finally(()=>{registrationFormPromise=null;});
+  }
+  return registrationFormPromise;
+}
 function showAuth(mode){state.mode=mode;$("#loading").classList.add("hidden");$("#app-screen").classList.add("hidden");$("#auth-screen").classList.remove("hidden");setAuthMode(mode);}
-function setAuthMode(mode){state.mode=mode;const register=mode==="register";$("#register-fields").classList.toggle("hidden",!register);$$("#register-fields input").forEach(x=>x.required=register);$("#register-tab").classList.toggle("active",register);$("#login-tab").classList.toggle("active",!register);$("#auth-title").textContent=register?"Crea tu cuenta.":"Qué bueno verte.";$("#auth-subtitle").textContent=register?"Crea tu cuenta profesional gratuita.":"Ingresa para continuar con tus pacientes.";$("#auth-submit").textContent=register?"Crear mi cuenta gratis ↗":"Ingresar a mi consulta ↗";$("#auth-error").textContent="";$("#register-note").textContent=register?"Sin tarjeta de crédito. Tu cuenta es gratuita.":"Tu espacio profesional, en un solo lugar.";$("[name=password]",$("#auth-form")).autocomplete=register?"new-password":"current-password";resetPasswordVisibility($("#auth-form"));history.replaceState(null,"",register?"/registro":"/ingresar");}
+function setAuthMode(mode){state.mode=mode;if(mode==="register")prepareRegistration().catch(e=>{$("#auth-error").textContent=e.message;});const register=mode==="register";$("#register-fields").classList.toggle("hidden",!register);$$("#register-fields input").forEach(x=>x.required=register);$("#register-tab").classList.toggle("active",register);$("#login-tab").classList.toggle("active",!register);$("#auth-title").textContent=register?"Crea tu cuenta.":"Qué bueno verte.";$("#auth-subtitle").textContent=register?"Crea tu cuenta profesional gratuita.":"Ingresa para continuar con tus pacientes.";$("#auth-submit").textContent=register?"Crear mi cuenta gratis ↗":"Ingresar a mi consulta ↗";$("#auth-error").textContent="";$("#register-note").textContent=register?"Sin tarjeta de crédito. Tu cuenta es gratuita.":"Tu espacio profesional, en un solo lugar.";$("[name=password]",$("#auth-form")).autocomplete=register?"new-password":"current-password";resetPasswordVisibility($("#auth-form"));history.replaceState(null,"",register?"/registro":"/ingresar");}
 $("#login-tab").onclick=()=>setAuthMode("login");$("#register-tab").onclick=()=>setAuthMode("register");
-$("#auth-form").onsubmit=async event=>{event.preventDefault();const btn=$("#auth-submit");btn.disabled=true;$("#auth-error").textContent="";try{const data=Object.fromEntries(new FormData(event.target));if(state.mode==="login"){delete data.full_name;delete data.specialty;}state.user=await api(`/api/auth/${state.mode==="register"?"register":"login"}`,{method:"POST",body:JSON.stringify(data)});event.target.reset();await enterApp();}catch(e){$("#auth-error").textContent=e.message;}finally{btn.disabled=false;}};
+$("#auth-form").onsubmit=async event=>{
+  event.preventDefault();const btn=$("#auth-submit"),mode=state.mode;btn.disabled=true;$("#auth-error").textContent="";
+  try{
+    const data=Object.fromEntries(new FormData(event.target));
+    if(mode==="login"){delete data.full_name;delete data.specialty;delete data.website;}
+    else{
+      const form=await prepareRegistration();
+      await new Promise(resolve=>setTimeout(resolve,Math.max(0,form.readyAt-Date.now())));
+      data.form_token=form.token;
+      registrationForm=null;
+    }
+    state.user=await api(`/api/auth/${mode==="register"?"register":"login"}`,{method:"POST",body:JSON.stringify(data)});
+    event.target.reset();await enterApp();
+  }catch(e){
+    $("#auth-error").textContent=e.message;
+    if(mode==="register"){registrationForm=null;prepareRegistration().catch(()=>{});}
+  }finally{btn.disabled=false;}
+};
 async function loadPatients(){let result=[],offset=0;while(true){const page=await api(`/api/patients?limit=200&offset=${offset}`);result.push(...page);if(page.length<200)break;offset+=200;}state.patients=result;}
 async function loadWeek(){const start=weekStart(state.day);state.appointments=await api(`/api/appointments?${new URLSearchParams({start:localISO(start+"T00:00"),end:localISO(addDays(start,7)+"T00:00")})}`);}
 async function enterApp(){await loadPatients();await loadWeek();$("#loading").classList.add("hidden");$("#auth-screen").classList.add("hidden");$("#app-screen").classList.remove("hidden");history.replaceState(null,"","/portal");renderUser();await showView("home");}

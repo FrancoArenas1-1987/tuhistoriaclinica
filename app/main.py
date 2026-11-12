@@ -3,13 +3,15 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.abuse_middleware import AbuseMiddleware
 from app.db import engine, get_db
 from app.routers import auth, clinic, medical_orders
 
@@ -20,6 +22,15 @@ app = FastAPI(
     version="1.0.0",
     description="Gestión de pacientes, fichas clínicas y agenda para profesionales",
 )
+
+app.add_middleware(AbuseMiddleware)
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    # Pydantic includes raw input by default; never echo passwords or clinical payloads.
+    errors = [{"loc": error["loc"], "msg": error["msg"], "type": error["type"]} for error in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errors})
+
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))

@@ -131,3 +131,13 @@ class MedicalOrder(Base):
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AbuseState(Base):
+    """Expiring counters and consumed form nonces; keys contain HMACs, never raw IP/email."""
+    __tablename__ = "abuse_state"
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    window_start: Mapped[int] = mapped_column(Integer, nullable=False)
+    blocked_until: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    expires_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)

@@ -1,4 +1,5 @@
 """Optional browser QA. Requires a local server, Chrome CDP on 9227 and websockets."""
+import os
 import base64
 import json
 import time
@@ -12,11 +13,13 @@ from app.core.config import settings
 from app.services.medical_images import private_path
 from tests.test_medical_orders import photo_bytes
 
+base_url=os.environ.get("QA_BASE_URL", "http://127.0.0.1:8000")
+
 email=f"browser-{uuid4().hex}@example.com"
 seq=0
 errors=[]
 tabs=json.load(urllib.request.urlopen("http://127.0.0.1:9227/json"))
-ws=connect(tabs[0]["webSocketDebuggerUrl"])
+ws=connect(next(tab for tab in tabs if tab["type"] == "page")["webSocketDebuggerUrl"])
 def command(method,params=None):
     global seq
     seq+=1
@@ -47,7 +50,7 @@ def screenshot(name):
 try:
     command('Runtime.enable');command('Page.enable')
     command('Emulation.setDeviceMetricsOverride',{'width':1440,'height':1000,'deviceScaleFactor':1,'mobile':False})
-    command('Page.navigate',{'url':'http://127.0.0.1:8000/'})
+    command('Page.navigate',{'url':base_url+'/'})
     wait('document.querySelector(".closing") !== null')
     screenshot('landing-desktop')
     command('Emulation.setDeviceMetricsOverride',{'width':390,'height':844,'deviceScaleFactor':1,'mobile':True})
@@ -55,7 +58,7 @@ try:
     assert js('document.querySelector(".login-link").getBoundingClientRect().width > 0'), 'Mobile login link is hidden'
     screenshot('landing-mobile')
     command('Emulation.setDeviceMetricsOverride',{'width':1440,'height':1000,'deviceScaleFactor':1,'mobile':False})
-    command('Page.navigate',{'url':'http://127.0.0.1:8000/registro'})
+    command('Page.navigate',{'url':base_url+'/registro'})
     wait('document.querySelector("#auth-screen") && !document.querySelector("#auth-screen").classList.contains("hidden")')
     fill('#auth-form',{'full_name':'Profesional QA','specialty':'Kinesiología','email':email,'password':'BrowserOnly!12345'})
     wait('document.querySelector("#app-screen") && !document.querySelector("#app-screen").classList.contains("hidden")')

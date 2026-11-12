@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.security import decode_access_token
 from app.db import get_db
 from app.models import User, UserRole
+from app.services.abuse import user_budget
 
 
 def _extract_token(request: Request, authorization: str | None) -> str | None:
@@ -32,6 +33,7 @@ def get_current_user(
     user = db.query(User).filter(User.id == int(user_id), User.is_active.is_(True)).first()
     if not user or claims.get("ver", 0) != user.session_version:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no valido")
+    user_budget(request, user)
     return user
 
 
