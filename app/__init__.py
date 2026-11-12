@@ -1,0 +1,2 @@
+"""kine & mujer application package."""
+

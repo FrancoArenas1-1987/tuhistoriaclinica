@@ -1,0 +1,2 @@
+{% macro icon(name, extra='') -%}<svg class="icon {{ extra }}" aria-hidden="true"><use href="/static/icons.svg#{{ name }}"></use></svg>{%- endmacro %}
+{% macro brand() -%}<a class="brand" href="/" aria-label="TuHistoriaClinica.cl, inicio"><span class="brand-icon"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 6h8v6h6v8h-6v6h-8v-6H6v-8h6Z" fill="currentColor"/></svg></span><span class="brand-name">TuHistoria<span>Clinica</span><small>.cl</small></span></a>{%- endmacro %}

@@ -1,0 +1,36 @@
+# Credentials and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python environments and generated files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases, patient files, and backups
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+data/
+storage/
+deployment-backups/
+
+# QA output and release archives
+artifacts/
+deploy/*-release.tar.gz
+*.log
+
+# Editors and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
