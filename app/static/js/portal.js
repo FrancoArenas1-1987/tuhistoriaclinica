@@ -30,7 +30,7 @@ async function api(path, options={}){
   }return body;
 }
 function notify(message,error=false){const el=$("#global-message");el.textContent=message;el.className="toast"+(error?" error":"");el.scrollIntoView({block:"nearest",behavior:"smooth"});}
-let registrationForm=null, registrationFormPromise=null;
+let registrationForm=null, registrationFormPromise=null, recoveryToken=null;
 async function prepareRegistration(){
   if(registrationForm && registrationForm.validUntil>Date.now()+5000)return registrationForm;
   if(!registrationFormPromise){
@@ -42,7 +42,51 @@ async function prepareRegistration(){
   return registrationFormPromise;
 }
 function showAuth(mode){state.mode=mode;$("#loading").classList.add("hidden");$("#app-screen").classList.add("hidden");$("#auth-screen").classList.remove("hidden");setAuthMode(mode);}
-function setAuthMode(mode){state.mode=mode;if(mode==="register")prepareRegistration().catch(e=>{$("#auth-error").textContent=e.message;});const register=mode==="register";$("#register-fields").classList.toggle("hidden",!register);$$("#register-fields input").forEach(x=>x.required=register);$("#register-tab").classList.toggle("active",register);$("#login-tab").classList.toggle("active",!register);$("#auth-title").textContent=register?"Crea tu cuenta.":"Qué bueno verte.";$("#auth-subtitle").textContent=register?"Crea tu cuenta profesional gratuita.":"Ingresa para continuar con tus pacientes.";$("#auth-submit").textContent=register?"Crear mi cuenta gratis ↗":"Ingresar a mi consulta ↗";$("#auth-error").textContent="";$("#register-note").textContent=register?"Sin tarjeta de crédito. Tu cuenta es gratuita.":"Tu espacio profesional, en un solo lugar.";$("[name=password]",$("#auth-form")).autocomplete=register?"new-password":"current-password";resetPasswordVisibility($("#auth-form"));history.replaceState(null,"",register?"/registro":"/ingresar");}
+function setAuthMode(mode){
+  state.mode=mode;const register=mode==="register",recover=mode==="recover",reset=mode==="reset",recovery=recover||reset;
+  if(register)prepareRegistration().catch(e=>{$("#auth-error").textContent=e.message;});
+  $(".auth-tabs").classList.toggle("hidden",recovery);
+  $("#auth-form").classList.toggle("hidden",recovery);
+  $("#recover-form").classList.toggle("hidden",!recover);
+  $("#reset-recovery-form").classList.toggle("hidden",!reset);
+  $("#forgot-password-link").classList.toggle("hidden",mode!=="login");
+  $("#register-fields").classList.toggle("hidden",!register);
+  $$("#register-fields input").forEach(x=>x.required=register);
+  $("#register-tab").classList.toggle("active",register);$("#login-tab").classList.toggle("active",!register);
+  $("#auth-title").textContent=recover?"Recupera tu acceso.":reset?"Crea una nueva contraseña.":register?"Crea tu cuenta.":"Qué bueno verte.";
+  $("#auth-subtitle").textContent=recover?"Te enviaremos un enlace para crear una nueva contraseña.":reset?"Elige una contraseña segura para volver a tu consulta.":register?"Crea tu cuenta profesional gratuita.":"Ingresa para continuar con tus pacientes.";
+  $("#auth-submit").textContent=register?"Crear mi cuenta gratis ↗":"Ingresar a mi consulta ↗";
+  $("#auth-error").textContent="";$("#auth-status").textContent="";
+  $$("#recover-form .form-message, #recover-form .form-success, #reset-recovery-form .form-message").forEach(x=>x.textContent="");
+  $("#register-note").textContent=register?"Sin tarjeta de crédito. Tu cuenta es gratuita.":"Tu espacio profesional, en un solo lugar.";
+  $("[name=password]",$("#auth-form")).autocomplete=register?"new-password":"current-password";
+  resetPasswordVisibility($("#auth-form"));resetPasswordVisibility($("#reset-recovery-form"));
+  history.replaceState(null,"",recover?"/recuperar-contrasena":reset?"/restablecer-contrasena":register?"/registro":"/ingresar");
+  if(reset){
+    $("#reset-recovery-form button[type=submit]").disabled=!recoveryToken;
+    if(!recoveryToken)$("#reset-recovery-form .form-message").textContent="Este enlace no es válido. Solicita uno nuevo.";
+  }
+}
+$("#forgot-password-link").onclick=event=>{event.preventDefault();const email=$("#auth-form [name=email]").value;showAuth("recover");$("#recover-form [name=email]").value=email;$("#recover-form [name=email]").focus();};
+$(".recovery-back").onclick=event=>{event.preventDefault();showAuth("login");};
+$("#request-new-reset").onclick=event=>{event.preventDefault();recoveryToken=null;$("#reset-recovery-form").reset();showAuth("recover");};
+$("#recover-form").onsubmit=async event=>{
+  event.preventDefault();const form=event.target,button=$("button[type=submit]",form),error=$(".form-message",form),status=$(".form-success",form);
+  error.textContent="";status.textContent="";button.disabled=true;
+  try{const result=await api("/api/auth/forgot-password",{method:"POST",body:JSON.stringify({email:form.elements.email.value})});status.textContent=result.message;}
+  catch(e){error.textContent=e.message;}finally{button.disabled=false;}
+};
+$("#reset-recovery-form").onsubmit=async event=>{
+  event.preventDefault();const form=event.target,button=$("button[type=submit]",form),error=$(".form-message",form);error.textContent="";
+  if(!recoveryToken){error.textContent="Solicita un nuevo enlace para continuar.";return;}
+  const data=Object.fromEntries(new FormData(form));
+  if(data.new_password!==data.confirm_password){error.textContent="Las contraseñas no coinciden.";return;}
+  button.disabled=true;
+  try{
+    const result=await api("/api/auth/reset-password",{method:"POST",body:JSON.stringify({...data,token:recoveryToken})});
+    recoveryToken=null;state.user=null;form.reset();$("#auth-form").reset();showAuth("login");$("#auth-status").textContent=result.message;
+  }catch(e){error.textContent=e.message;}finally{button.disabled=!recoveryToken;}
+};
 $("#login-tab").onclick=()=>setAuthMode("login");$("#register-tab").onclick=()=>setAuthMode("register");
 $("#auth-form").onsubmit=async event=>{
   event.preventDefault();const btn=$("#auth-submit"),mode=state.mode;btn.disabled=true;$("#auth-error").textContent="";
@@ -110,7 +154,7 @@ $$("[data-password-target]").forEach(button=>button.addEventListener("click",()=
   const input=document.getElementById(button.dataset.passwordTarget);
   setPasswordVisibility(button,input.type==="password");
 }));
-["#auth-form","#profile-form","#password-form"].forEach(selector=>{
+["#auth-form","#profile-form","#password-form","#reset-recovery-form"].forEach(selector=>{
   $(selector).addEventListener("reset",()=>resetPasswordVisibility($(selector)));
 });
 function resetPasswordForm(){
@@ -217,4 +261,11 @@ $("#confirm-delete-order").onclick=async()=>{
   try{await api(`/api/medical-orders/${id}`,{method:"DELETE"});$("#order-view-dialog").close();await openRecord(patientId);notify("Orden médica eliminada.");}
   catch(e){$("#order-view-error").textContent=e.message;}finally{button.disabled=false;}
 };
-(async()=>{try{state.user=await api("/api/auth/me");await enterApp();}catch(e){if(state.user){$("#loading").classList.add("hidden");$("#app-screen").classList.remove("hidden");renderUser();notify(e.message,true);}else showAuth(location.pathname==="/registro"?"register":"login");}})();
+(async()=>{
+  if(location.pathname==="/restablecer-contrasena"){
+    const token=new URLSearchParams(location.hash.slice(1)).get("token");
+    recoveryToken=token&&/^[A-Za-z0-9_-]{43}$/.test(token)?token:null;
+    history.replaceState(null,"","/restablecer-contrasena");showAuth("reset");return;
+  }
+  if(location.pathname==="/recuperar-contrasena"){showAuth("recover");return;}
+  try{state.user=await api("/api/auth/me");await enterApp();}catch(e){if(state.user){$("#loading").classList.add("hidden");$("#app-screen").classList.remove("hidden");renderUser();notify(e.message,true);}else showAuth(location.pathname==="/registro"?"register":"login");}})();

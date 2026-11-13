@@ -157,3 +157,28 @@ python -m tests.run_isolated
 ```
 
 Estas capas reducen automatización y consumo abusivo; no certifican que el usuario sea profesional ni sustituyen defensas de infraestructura frente a saturación de red. La copia de seguridad y la auditoría clínica requieren su propio seguimiento.
+
+
+## Recuperación de contraseña por correo
+
+Disponible en el código mediante «Olvidé mi contraseña». Requiere configurar SMTP antes de habilitar envío real:
+
+- `PUBLIC_BASE_URL`: origen público HTTPS de esta instalación; nunca se obtiene de Host ni de cabeceras del navegador.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY` (`starttls` o `ssl`), `SMTP_USERNAME`, `SMTP_FROM`, `SMTP_PASSWORD`.
+- `PASSWORD_RESET_MINUTES` (15 por defecto, rango 5–60).
+
+Para Gmail: activar verificación en dos pasos y generar una contraseña de aplicación; no utilizar la contraseña habitual. Conectar a `smtp.gmail.com`, puerto 587 con STARTTLS o 465 con SSL. La contraseña se guarda únicamente en el `.env` privado, nunca en Git ni en logs. Cambiar la contraseña principal de Google revoca sus contraseñas de aplicación.
+
+La API devuelve el mismo mensaje 202 para correos existentes y desconocidos. El envío se procesa después de la respuesta HTTP, con timeout SMTP y validación de certificados TLS. Solo se envía a cuentas activas. Sin configuración completa devuelve 503 para cualquier correo, sin afirmar que se enviaron instrucciones. Los fallos se registran por tipo, sin datos SMTP, destinatarios ni enlaces; el usuario puede reintentar respetando las cuotas.
+
+Tokens aleatorios de 256 bits; la tabla `password_resets` solo guarda SHA-256, versión de sesión y vencimiento. El enlace lleva el token en el fragmento (`#token=`), que no llega al servidor en la URL; el navegador lo retira de la barra de direcciones al cargar y no lo persiste. La página usa `no-referrer`. Solicitudes de recuperación no cambian contraseñas ni cierran sesiones. Un enlace exitoso solo puede consumirse una vez, cambia la contraseña, revoca todas las sesiones anteriores y exige iniciar sesión nuevamente. Cambiar la contraseña o el correo invalida también enlaces anteriores mediante `session_version`.
+
+Límites persistentes: 10 solicitudes de recuperación o restablecimiento por IP cada 15 minutos, 100 por hora para el sitio por operación, y como máximo 3 envíos por dirección por hora con 60 segundos entre ellos. Solicitudes dentro del límite por dirección devuelven el mismo mensaje y no mandan más correos. Un enlace nuevo enviado después de la espera sustituye al anterior.
+
+Aplicar la migración 005 con el usuario administrador y conceder SELECT/INSERT/UPDATE/DELETE en `password_resets` al rol de ejecución. El envío usa tareas de la aplicación, no una cola durable: un reinicio durante un envío puede requerir una nueva solicitud. Los enlaces y correos no contienen datos de pacientes.
+
+Prueba aislada sin enviar correos reales:
+
+```powershell
+python -m tests.run_isolated tests.test_password_recovery -v
+```

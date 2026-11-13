@@ -141,3 +141,11 @@ class AbuseState(Base):
     window_start: Mapped[int] = mapped_column(Integer, nullable=False)
     blocked_until: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     expires_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    session_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    expires_at: Mapped[int] = mapped_column(Integer, nullable=False, index=True)

@@ -88,6 +88,9 @@ def request_budget(request):
         enforce_limits([("form-ip", ip, 60, 600), ("form-site", "site", 1000, 600)])
     elif path == "/api/auth/register":
         enforce_limits([("reg-attempt", ip, 30, 600)])
+    elif path in ("/api/auth/forgot-password", "/api/auth/reset-password"):
+        scope = "recover" if path.endswith("forgot-password") else "reset"
+        enforce_limits([(scope + "-ip", ip, 10, 900), (scope + "-site", "site", 100, 3600)])
     elif path == "/api/auth/login":
         enforce_limits([("login-ip", ip, 30, 300), ("login-hour", ip, 200, 3600)])
 

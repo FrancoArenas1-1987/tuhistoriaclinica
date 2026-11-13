@@ -368,3 +368,5 @@ td small { color: #74859e; }
 }
 
 .registration-trap{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
+
+.recovery-link{display:inline-block;margin:0 0 12px;}.recovery-back,#request-new-reset{display:block;text-align:center;margin-top:20px;}.form-success{color:#17735c;line-height:1.6;}.form-success:empty{display:none;}

@@ -26,7 +26,7 @@ class AbuseMiddleware:
                 if (request.headers.get("sec-fetch-site") == "cross-site"
                     or origin and origin.rstrip("/") != str(request.base_url).rstrip("/")):
                     raise HTTPException(403, "Solicitud de origen no permitido")
-            if scope["path"] in ("/api/auth/register", "/api/auth/login", "/api/auth/registration-form"):
+            if scope["path"] in ("/api/auth/register", "/api/auth/login", "/api/auth/registration-form", "/api/auth/forgot-password", "/api/auth/reset-password"):
                 await run_in_threadpool(request_budget, request)
             # Medical images have their own decoded-size validation and a 14 MB proxy cap.
             if request.method in ("POST", "PUT", "PATCH") and not scope["path"].endswith("/medical-orders"):

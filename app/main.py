@@ -64,6 +64,8 @@ def public_home(request: Request):
     return templates.TemplateResponse(request=request, name="public/index.html", context={ "app_name": settings.app_name, "year": datetime.now(ZoneInfo("America/Santiago")).year})
 
 
+@app.get("/recuperar-contrasena", response_class=HTMLResponse)
+@app.get("/restablecer-contrasena", response_class=HTMLResponse)
 @app.get("/registro", response_class=HTMLResponse)
 @app.get("/ingresar", response_class=HTMLResponse)
 @app.get("/portal", response_class=HTMLResponse)

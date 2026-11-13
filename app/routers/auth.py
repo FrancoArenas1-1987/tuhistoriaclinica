@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.core.config import settings
@@ -6,8 +6,9 @@ from app.core.security import create_access_token, verify_password, hash_passwor
 from app.deps import get_current_user
 from app.db import get_db
 from app.models import User, UserRole
-from app.schemas import LoginRequest, RegisterRequest, UserRead, ProfileUpdate, PasswordChange
+from app.schemas import ForgotPasswordRequest, ResetPasswordRequest, LoginRequest, RegisterRequest, UserRead, ProfileUpdate, PasswordChange
 
+from app.services.password_recovery import mail_ready, deliver_recovery, reset_password, GENERIC_MESSAGE
 from app.services.abuse import issue_form, consume_form, check_login, failed_login, successful_login
 
 # Equalize password-check work for unknown email addresses.
@@ -97,3 +98,18 @@ def change_password(payload: PasswordChange, response: Response, user: User = De
     db.refresh(user)
     session_cookie(response, user)
     return {"ok": True}
+
+
+@router.post("/forgot-password", status_code=202)
+def forgot_password(payload: ForgotPasswordRequest, tasks: BackgroundTasks):
+    if not mail_ready():
+        raise HTTPException(503, "La recuperación por correo aún no está disponible. Intenta nuevamente más tarde.")
+    tasks.add_task(deliver_recovery, str(payload.email).lower())
+    return {"message": GENERIC_MESSAGE}
+
+
+@router.post("/reset-password")
+def reset_forgotten_password(payload: ResetPasswordRequest, response: Response, db: Session = Depends(get_db)):
+    reset_password(payload, db)
+    response.delete_cookie("thc_token", secure=settings.cookie_secure, httponly=True, samesite="lax")
+    return {"message": "Contraseña actualizada. Inicia sesión con tu nueva contraseña. Las sesiones anteriores quedaron cerradas."}

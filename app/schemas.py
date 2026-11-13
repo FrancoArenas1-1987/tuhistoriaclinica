@@ -195,3 +195,26 @@ class MedicalOrderRead(BaseModel):
     height: int
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$", repr=False)
+    new_password: str = Field(min_length=8, max_length=64, repr=False)
+    confirm_password: str = Field(min_length=8, max_length=64, repr=False)
+
+    @field_validator("new_password", "confirm_password")
+    @classmethod
+    def password_bytes(cls, value):
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("La contraseña no puede superar 72 bytes")
+        return value
+
+    @model_validator(mode="after")
+    def matching_passwords(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("La contraseña y su confirmación no coinciden")
+        return self

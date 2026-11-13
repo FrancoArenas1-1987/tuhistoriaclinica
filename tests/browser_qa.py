@@ -99,7 +99,7 @@ try:
     wait('!document.querySelector("#medical-orders-list").textContent.includes("Orden médica de prueba")')
     command('Emulation.setDeviceMetricsOverride',{'width':1440,'height':1000,'deviceScaleFactor':1,'mobile':False})
     js('document.querySelector("[data-action=patient-appointment]").click()')
-    fill('#editor-form',{'starts_at':'2026-11-12T11:00','ends_at':'2026-11-12T11:45','reason':'Control de seguimiento'})
+    fill('#editor-form',{'starts_at':js('state.day')+'T11:00','ends_at':js('state.day')+'T11:45','reason':'Control de seguimiento'})
     wait('!document.querySelector("#editor").open')
     js('document.querySelector("#app-nav [data-view=agenda]").click()')
     wait('document.querySelector("#agenda-events").textContent.includes("Control de seguimiento")')
@@ -134,8 +134,39 @@ try:
     wait('!document.querySelector("#app-screen").classList.contains("hidden")')
     js('document.querySelector("#logout").click()')
     wait('!document.querySelector("#auth-screen").classList.contains("hidden")')
+    mailbox_path=os.environ.get("QA_MAILBOX_FILE")
+    if mailbox_path:
+        js('document.querySelector("#forgot-password-link").click()')
+        wait('!document.querySelector("#recover-form").classList.contains("hidden")')
+        command('Emulation.setDeviceMetricsOverride',{'width':390,'height':844,'deviceScaleFactor':1,'mobile':True})
+        fill('#recover-form',{'email':email})
+        wait('document.querySelector("#recover-form .form-success").textContent.includes("instrucciones")')
+        assert js('document.documentElement.scrollWidth <= innerWidth'), 'Recovery form overflows mobile'
+        screenshot('recovery-mobile')
+        for _ in range(100):
+            if Path(mailbox_path).exists():break
+            time.sleep(.1)
+        captured=json.loads(Path(mailbox_path).read_text(encoding='utf-8'))
+        assert captured['recipient']==email
+        command('Page.navigate',{'url':base_url+'/restablecer-contrasena#token='+captured['token']})
+        wait('!document.querySelector("#reset-recovery-form").classList.contains("hidden")')
+        assert js('location.hash === ""'), 'Reset token remains in URL'
+        assert js('document.querySelector("meta[name=referrer]").content === "no-referrer"')
+        js('document.querySelector("[data-password-target=recovery-new-password]").click()')
+        assert js('document.querySelector("#recovery-new-password").type === "text"')
+        fill('#reset-recovery-form',{'new_password':'BrowserRecovered!12345','confirm_password':'MismatchOnly!12345'})
+        wait('document.querySelector("#reset-recovery-form .form-message").textContent.includes("no coinciden")')
+        screenshot('reset-mobile')
+        fill('#reset-recovery-form',{'new_password':'BrowserRecovered!12345','confirm_password':'BrowserRecovered!12345'})
+        wait('document.querySelector("#auth-status").textContent.includes("actualizada")')
+        fill('#auth-form',{'email':email,'password':'BrowserUpdated!12345'})
+        wait('document.querySelector("#auth-error").textContent.includes("incorrectos")')
+        fill('#auth-form',{'email':email,'password':'BrowserRecovered!12345'})
+        wait('!document.querySelector("#app-screen").classList.contains("hidden")')
+        js('document.querySelector("#logout").click()')
+        wait('!document.querySelector("#auth-screen").classList.contains("hidden")')
     assert not errors,errors
-    print('Browser QA OK: registration, patient validation, clinical record, visits, scheduling, cancellation, logout, desktop and mobile.')
+    print('Browser QA OK: registration, patient validation, clinical record, visits, scheduling, cancellation, logout, password recovery, desktop and mobile.')
 finally:
     ws.close()
     with SessionLocal() as db:

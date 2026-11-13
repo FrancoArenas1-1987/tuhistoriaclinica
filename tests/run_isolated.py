@@ -26,8 +26,8 @@ try:
     print("Running against isolated temporary PostgreSQL DB", flush=True)
     if sys.argv[1:] == ["--browser"]:
         with tempfile.TemporaryDirectory() as storage:
-            browser_env = {**env, "STORAGE_DIR": storage, "QA_BASE_URL": "http://127.0.0.1:8001"}
-            server = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8001"], env=browser_env)
+            browser_env = {**env, "STORAGE_DIR": storage, "QA_BASE_URL": "http://127.0.0.1:8001", "QA_MAILBOX_FILE": str(__import__("pathlib").Path(storage) / "mailbox.json")}
+            server = subprocess.Popen([sys.executable, "-m", "uvicorn", "tests.browser_server:app", "--host", "127.0.0.1", "--port", "8001"], env=browser_env)
             try:
                 for _ in range(100):
                     try:

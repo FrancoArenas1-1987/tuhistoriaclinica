@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from pydantic import EmailStr, Field, SecretStr
+from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +22,14 @@ class Settings(BaseSettings):
     visit_quota: int = 20000
     appointment_quota: int = 20000
     medical_order_count_quota: int = 2000
+    public_base_url: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from: EmailStr | None = None
+    smtp_security: Literal["starttls", "ssl"] = "starttls"
+    password_reset_minutes: int = Field(default=15, ge=5, le=60)
     database_url: str
     model_config = SettingsConfigDict(env_file=Path(__file__).resolve().parents[2] / ".env", extra="ignore")
 
