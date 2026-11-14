@@ -182,3 +182,12 @@ Prueba aislada sin enviar correos reales:
 ```powershell
 python -m tests.run_isolated tests.test_password_recovery -v
 ```
+
+
+## Registro simplificado de atenciones
+
+El editor tiene cuatro campos de texto: Historia clínica / evolución (obligatorio), Examen físico, Tratamiento realizado y plan, e Indicaciones. La fecha es obligatoria y visible; dolor y próxima atención sugerida están en Datos adicionales. Los textos crecen al escribir, con botones de guardado visibles en celular.
+
+Los campos de base de datos se mantienen compatibles. Las atenciones anteriores se muestran agrupadas: motivo + hallazgos/evolución + evaluación clínica forman Historia clínica / evolución; ejercicios + recomendaciones forman Indicaciones. Cada texto conserva su etiqueta de origen. Solo al guardar una edición se mueve el texto agrupado a los campos principales y se limpian las columnas redundantes de esa atención, evitando duplicación al editar otra vez. No se ejecuta una conversión masiva de fichas.
+
+La recuperación por correo requiere además `PASSWORD_RECOVERY_ENABLED=true`. El valor por defecto es false: hasta verificar SMTP, el enlace no aparece en el ingreso y la API devuelve 503, independientemente del correo. Esto permite desplegar mejoras del portal sin activar el correo pendiente de habilitación del proveedor.

@@ -10,6 +10,7 @@ if not mailbox:
 from app.main import app
 from app.core.config import settings
 from app.services import password_recovery
+settings.password_recovery_enabled = True
 settings.public_base_url = "http://127.0.0.1:8001"
 settings.smtp_host = "smtp.invalid"
 settings.smtp_username = "qa@example.com"

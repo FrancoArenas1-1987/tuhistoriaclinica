@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     smtp_password: SecretStr | None = None
     smtp_from: EmailStr | None = None
     smtp_security: Literal["starttls", "ssl"] = "starttls"
+    password_recovery_enabled: bool = False
     password_reset_minutes: int = Field(default=15, ge=5, le=60)
     database_url: str
     model_config = SettingsConfigDict(env_file=Path(__file__).resolve().parents[2] / ".env", extra="ignore")

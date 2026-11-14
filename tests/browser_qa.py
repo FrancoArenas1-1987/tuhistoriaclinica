@@ -72,10 +72,46 @@ try:
     wait('!document.querySelector("#editor").open')
     wait('document.querySelector("#record-header").textContent.includes("Paciente Browser")')
     js('document.querySelector("#new-visit").click()')
+    assert js('document.querySelectorAll("#editor-fields textarea").length === 4'), 'Visit form must have four text areas'
+    assert js('document.querySelectorAll("#editor-fields textarea[required]").length === 1'), 'Only history/evolution is required'
+    assert js('!document.querySelector(".visit-additional").open'), 'Additional fields should start collapsed'
+    assert js('document.querySelector("#editor-form button[type=submit]").textContent === "Guardar atención"')
+    command('Emulation.setDeviceMetricsOverride',{'width':390,'height':844,'deviceScaleFactor':1,'mobile':True})
+    js('document.querySelector("#editor-fields [name=new_findings]").value=("Texto de prueba"+String.fromCharCode(10)).repeat(16);document.querySelector("#editor-fields [name=new_findings]").dispatchEvent(new Event("input",{bubbles:true}))')
+    assert js('document.querySelector("#editor-fields [name=new_findings]").offsetHeight > 200'), 'Visit text area does not grow'
+    assert js('document.documentElement.scrollWidth <= innerWidth'), 'Visit form overflows mobile'
+    screenshot('visit-four-fields-mobile')
+    js('document.querySelector(".visit-additional summary").click()')
     fill('#editor-form',{'visit_date':'2026-11-12','new_findings':'Buena evolución clínica','treatment_plan':'Seguimiento semanal','pain_scale':'0'})
     wait('!document.querySelector("#editor").open')
     wait('document.querySelector("#visit-list").textContent.includes("Buena evolución")')
     screenshot('clinical-record')
+    legacy_payload={'patient_id':js('state.patient.id'),'visit_date':'2026-11-11','chief_complaint':'Motivo anterior <b>sin HTML</b>','objective_exam':'Examen anterior','new_findings':'Evolución anterior','clinical_assessment':'Valoración anterior','treatment_plan':'Tratamiento anterior','home_exercises':'Ejercicio anterior','recommendations':'Cuidado anterior','pain_scale':0,'next_visit_date':'2026-11-20'}
+    legacy=js(f'api("/api/visits",{{method:"POST",body:JSON.stringify({json.dumps(legacy_payload)})}})')
+    js('openRecord(state.patient.id)')
+    wait('document.querySelector("#visit-list").textContent.includes("Valoración anterior")')
+    assert js('!document.querySelector("#visit-list b")'), 'Legacy text was interpreted as HTML'
+    js(f'editVisit(state.visits.find(v=>v.id==={legacy["id"]}))')
+    wait('document.querySelector("#editor").open')
+    assert js('document.querySelectorAll("#editor-fields textarea").length === 4')
+    assert js('document.querySelector(".visit-legacy-note") !== null')
+    assert js('document.querySelector(".visit-additional").open'), 'Existing zero pain/follow-up must remain visible'
+    merged=js('document.querySelector("#editor-fields [name=new_findings]").value')
+    instructions=js('document.querySelector("#editor-fields [name=home_exercises]").value')
+    assert all(legacy_payload[key] in merged for key in ['chief_complaint','new_findings','clinical_assessment'])
+    assert all(legacy_payload[key] in instructions for key in ['home_exercises','recommendations'])
+    fill('#editor-form',{})
+    wait('!document.querySelector("#editor").open')
+    wait('document.querySelector("#visit-list").textContent.includes("Valoración anterior")')
+    saved=js(f'api("/api/visits/patient/{legacy_payload["patient_id"]}").then(rows=>rows.find(v=>v.id==={legacy["id"]}))')
+    assert saved['new_findings']==merged and saved['home_exercises']==instructions
+    assert saved['chief_complaint'] is None and saved['clinical_assessment'] is None and saved['recommendations'] is None
+    assert saved['objective_exam']==legacy_payload['objective_exam'] and saved['treatment_plan']==legacy_payload['treatment_plan']
+    assert saved['pain_scale']==0 and saved['next_visit_date']==legacy_payload['next_visit_date']
+    js(f'editVisit(state.visits.find(v=>v.id==={legacy["id"]}))')
+    assert js('document.querySelector("#editor-fields [name=new_findings]").value')==merged, 'Legacy content duplicated on second edit'
+    fill('#editor-form',{})
+    wait('!document.querySelector("#editor").open')
     fixture=Path('artifacts/qa-order.jpg');fixture.write_bytes(photo_bytes())
     js('document.querySelector("#add-medical-order").click()')
     wait('document.querySelector("#order-upload-dialog").open')

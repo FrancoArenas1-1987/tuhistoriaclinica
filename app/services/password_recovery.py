@@ -21,6 +21,8 @@ INVALID_MESSAGE = "El enlace no es válido o ya venció. Solicita uno nuevo."
 
 
 def mail_ready():
+    if not settings.password_recovery_enabled:
+        return False
     try:
         base = urlsplit(settings.public_base_url or "")
         safe_base = (base.scheme == "https" or base.scheme == "http" and settings.environment != "prod"

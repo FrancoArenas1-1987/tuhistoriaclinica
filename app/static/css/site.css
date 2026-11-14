@@ -370,3 +370,7 @@ td small { color: #74859e; }
 .registration-trap{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
 
 .recovery-link{display:inline-block;margin:0 0 12px;}.recovery-back,#request-new-reset{display:block;text-align:center;margin-top:20px;}.form-success{color:#17735c;line-height:1.6;}.form-success:empty{display:none;}
+
+/* Compact clinical visit form: four narrative fields and optional follow-up data. */
+.visit-form-grid{gap:20px}.visit-text-field{gap:7px}.visit-text-field>small{font-size:var(--text-small);font-weight:400;color:#63748d;line-height:1.5}.optional-label{font-size:var(--text-small);font-weight:400;color:#63748d}.visit-textarea{min-height:104px!important;resize:vertical;overflow:hidden;line-height:1.6}.visit-additional{border-top:1px solid var(--line);padding-top:18px;min-width:0}.visit-additional summary{cursor:pointer;font-weight:600;min-height:44px;line-height:1.6}.visit-additional summary span{font-weight:400;color:#63748d;font-size:var(--text-small)}.visit-additional[open]>.form-grid{margin-top:16px}.visit-legacy-note{font-size:var(--text-small);line-height:1.6;background:#f2f6ff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:0 0 20px}.visit-entry dd{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:600px){.visit-form-grid{gap:17px}.visit-text-field>small{font-size:.875rem}.visit-textarea{padding:12px}.visit-additional>.form-grid{grid-template-columns:1fr}}

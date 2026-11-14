@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.abuse_middleware import AbuseMiddleware
 from app.db import engine, get_db
 from app.routers import auth, clinic, medical_orders
+from app.services.password_recovery import mail_ready
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -61,7 +62,7 @@ app.include_router(medical_orders.router)
 
 @app.get("/", response_class=HTMLResponse)
 def public_home(request: Request):
-    return templates.TemplateResponse(request=request, name="public/index.html", context={ "app_name": settings.app_name, "year": datetime.now(ZoneInfo("America/Santiago")).year})
+    return templates.TemplateResponse(request=request, name="public/index.html", context={ "app_name": settings.app_name, "year": datetime.now(ZoneInfo("America/Santiago")).year, "recovery_available": mail_ready()})
 
 
 @app.get("/recuperar-contrasena", response_class=HTMLResponse)
@@ -70,7 +71,7 @@ def public_home(request: Request):
 @app.get("/ingresar", response_class=HTMLResponse)
 @app.get("/portal", response_class=HTMLResponse)
 def private_portal(request: Request):
-    return templates.TemplateResponse(request=request, name="app/portal.html", context={ "app_name": settings.app_name, "year": datetime.now(ZoneInfo("America/Santiago")).year})
+    return templates.TemplateResponse(request=request, name="app/portal.html", context={ "app_name": settings.app_name, "year": datetime.now(ZoneInfo("America/Santiago")).year, "recovery_available": mail_ready()})
 
 
 @app.get("/health")

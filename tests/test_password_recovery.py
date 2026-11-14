@@ -36,7 +36,7 @@ class PasswordRecoveryTest(unittest.TestCase):
         self.password="OriginalTestOnly!123"
         self.email=f"recovery-{uuid4().hex}@example.com"
         FakeSMTP.sent=[];FakeSMTP.calls=[]
-        self.config=patch.multiple(settings,public_base_url="https://clinic.example.com",smtp_host="smtp.invalid",
+        self.config=patch.multiple(settings,password_recovery_enabled=True,public_base_url="https://clinic.example.com",smtp_host="smtp.invalid",
             smtp_port=587,smtp_security="starttls",smtp_username="sender@example.com",
             smtp_password=SecretStr("test-only-not-a-real-secret"),smtp_from="sender@example.com")
         self.config.start()
